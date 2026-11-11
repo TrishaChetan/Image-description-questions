@@ -3,6 +3,7 @@ This project is a Streamlit application that allows you to:
 - Upload an image
 - Get a detailed 2-paragraph summary of the image (at least 500 words)
 - Ask questions about the image and receive accurate answers
+- 🔤 **Extract text** from photos of signs, receipts, notes or screenshots — copy it or download it as a .txt file
 - 💡 Let the model **suggest questions** about the image — click one to get the answer
 - Friendly error messages when Ollama isn't running or a model isn't pulled
 

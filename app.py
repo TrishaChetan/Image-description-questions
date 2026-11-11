@@ -16,6 +16,13 @@ SUMMARY_PROMPT = (
     "Avoid speculation beyond what is visible. Do not include lists or headings; use natural prose."
 )
 
+OCR_PROMPT = (
+    "Transcribe ALL text visible in the image exactly as written — signs, labels, "
+    "documents, screens, handwriting. Keep the original line breaks and reading order. "
+    "Do not translate, summarise or describe the image. "
+    "If there is no readable text, reply with exactly: NO_TEXT"
+)
+
 SUGGEST_PROMPT = (
     "Look at the image and write 5 short, specific questions a curious person might ask about it. "
     "Each question must be answerable from the image alone. "
@@ -104,6 +111,24 @@ if st.button("📝 Summarize (2 paragraphs, ≥500 words)"):
     if summary:
         st.subheader("Summary")
         st.write(summary)
+
+# --- Text extraction ---
+if st.button("🔤 Extract text from image"):
+    with st.spinner("Reading text..."):
+        text = safe_query(model, OCR_PROMPT, image_bytes, max_tokens)
+    if text is not None:
+        cleaned = text.strip().strip("`").strip()
+        if not cleaned or cleaned.upper().startswith("NO_TEXT"):
+            st.info("No readable text found in this image.")
+        else:
+            st.subheader("Extracted text")
+            st.code(cleaned, language=None)  # code block has a built-in copy button
+            st.download_button(
+                "⬇️ Download as .txt", cleaned,
+                file_name=f"{uploaded.name.rsplit('.', 1)[0]}-text.txt", mime="text/plain",
+            )
+            st.caption("Read by the vision model — double-check numbers and names. "
+                       "qwen2.5vl is the most accurate for small or dense text.")
 
 st.divider()
 
