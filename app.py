@@ -89,13 +89,21 @@ with st.sidebar:
     max_tokens = st.slider("Max tokens (higher = longer, slower)", 200, 1400, 900, step=50)
     st.caption("Tip: For speed, use smaller images and reduce max tokens.")
 
-uploaded = st.file_uploader("Upload an image (JPG/PNG)", type=["jpg", "jpeg", "png"])
+source = st.radio("Image source", ["📁 Upload", "📷 Camera"], horizontal=True, label_visibility="collapsed")
+if source == "📁 Upload":
+    uploaded = st.file_uploader("Upload an image (JPG/PNG)", type=["jpg", "jpeg", "png"])
+else:
+    # Works on phones and laptops; the browser asks for camera permission.
+    # Handy for signs, menus, labels and documents in front of you.
+    uploaded = st.camera_input("Take a photo")
+    if uploaded is not None and not getattr(uploaded, "name", None):
+        uploaded.name = "camera.jpg"
 
 if not uploaded:
-    st.info("Upload an image to begin.")
+    st.info("Upload an image or take a photo to begin.")
     st.stop()
 
-image_bytes = uploaded.read()
+image_bytes = uploaded.getvalue()  # getvalue() is safe across reruns; read() can return b"" the second time
 image_id = hashlib.sha1(image_bytes).hexdigest()
 if st.session_state.get("image_id") != image_id:
     st.session_state.image_id = image_id
