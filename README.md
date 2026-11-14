@@ -5,6 +5,7 @@ This project is a Streamlit application that allows you to:
 - Ask questions about the image and receive accurate answers
 - 📷 **Camera mode** — snap a photo with your phone or webcam instead of uploading (great for signs, menus and documents)
 - 🔤 **Extract text** from photos of signs, receipts, notes or screenshots — copy it or download it as a .txt file
+- 🌐 **Translate** the extracted text into 15 languages (Hindi, Kannada, Tamil, Spanish, Japanese…) keeping numbers, prices and names intact
 - 💡 Let the model **suggest questions** about the image — click one to get the answer
 - Friendly error messages when Ollama isn't running or a model isn't pulled
 

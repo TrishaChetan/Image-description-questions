@@ -23,6 +23,16 @@ OCR_PROMPT = (
     "If there is no readable text, reply with exactly: NO_TEXT"
 )
 
+TRANSLATE_LANGUAGES = ["English", "Hindi", "Kannada", "Tamil", "Telugu", "Malayalam", "Marathi", "Bengali",
+                       "Gujarati", "Spanish", "French", "German", "Japanese", "Chinese (Simplified)", "Arabic"]
+
+
+def translate_prompt(text: str, language: str) -> str:
+    return (f"Translate the following text into {language}. Keep the original line breaks, numbers, prices, "
+            f"names and codes unchanged. Output ONLY the translation, written in {language} script, "
+            f"with no notes or explanations.\n\nTEXT:\n{text}")
+
+
 SUGGEST_PROMPT = (
     "Look at the image and write 5 short, specific questions a curious person might ask about it. "
     "Each question must be answerable from the image alone. "
@@ -30,11 +40,12 @@ SUGGEST_PROMPT = (
 )
 
 
-def query_ollama(model: str, prompt: str, image_bytes: bytes, num_predict: int = 900, timeout=300):
+def query_ollama(model: str, prompt: str, image_bytes: bytes | None, num_predict: int = 900, timeout=300):
     payload = {
         "model": model,
         "prompt": prompt,
-        "images": [base64.b64encode(image_bytes).decode("utf-8")],
+        # text-only requests (e.g. translation) send no image
+        "images": [base64.b64encode(image_bytes).decode("utf-8")] if image_bytes else [],
         "stream": False,
         "options": {
             "num_predict": num_predict,
@@ -109,6 +120,8 @@ if st.session_state.get("image_id") != image_id:
     st.session_state.image_id = image_id
     st.session_state.suggestions = []
     st.session_state.answers = []
+    st.session_state.ocr_text = None
+    st.session_state.ocr_translation = None
 
 st.image(image_bytes, caption="Uploaded Image", use_container_width=True)
 
@@ -120,23 +133,41 @@ if st.button("📝 Summarize (2 paragraphs, ≥500 words)"):
         st.subheader("Summary")
         st.write(summary)
 
-# --- Text extraction ---
+# --- Text extraction (+ translation) ---
+# Kept in session state so it survives the reruns caused by the translate controls.
 if st.button("🔤 Extract text from image"):
     with st.spinner("Reading text..."):
         text = safe_query(model, OCR_PROMPT, image_bytes, max_tokens)
     if text is not None:
         cleaned = text.strip().strip("`").strip()
-        if not cleaned or cleaned.upper().startswith("NO_TEXT"):
-            st.info("No readable text found in this image.")
-        else:
-            st.subheader("Extracted text")
-            st.code(cleaned, language=None)  # code block has a built-in copy button
-            st.download_button(
-                "⬇️ Download as .txt", cleaned,
-                file_name=f"{uploaded.name.rsplit('.', 1)[0]}-text.txt", mime="text/plain",
-            )
-            st.caption("Read by the vision model — double-check numbers and names. "
-                       "qwen2.5vl is the most accurate for small or dense text.")
+        st.session_state.ocr_text = "" if (not cleaned or cleaned.upper().startswith("NO_TEXT")) else cleaned
+        st.session_state.ocr_translation = None
+
+ocr_text = st.session_state.get("ocr_text")
+if ocr_text == "":
+    st.info("No readable text found in this image.")
+elif ocr_text:
+    stem = uploaded.name.rsplit(".", 1)[0]
+    st.subheader("Extracted text")
+    st.code(ocr_text, language=None)  # code block has a built-in copy button
+    st.download_button("⬇️ Download as .txt", ocr_text, file_name=f"{stem}-text.txt", mime="text/plain")
+    st.caption("Read by the vision model — double-check numbers and names. "
+               "qwen2.5vl is the most accurate for small or dense text.")
+
+    t1, t2 = st.columns([2, 1])
+    target = t1.selectbox("Translate to", TRANSLATE_LANGUAGES, label_visibility="collapsed")
+    if t2.button("🌐 Translate", use_container_width=True):
+        with st.spinner(f"Translating to {target}..."):
+            out = safe_query(model, translate_prompt(ocr_text, target), None, max(400, len(ocr_text) // 2))
+        if out:
+            st.session_state.ocr_translation = (target, out.strip())
+    tr = st.session_state.get("ocr_translation")
+    if tr:
+        lang, translated = tr
+        st.subheader(f"Translation · {lang}")
+        st.code(translated, language=None)
+        st.download_button(f"⬇️ Download {lang} .txt", translated,
+                           file_name=f"{stem}-{lang.split()[0].lower()}.txt", mime="text/plain")
 
 st.divider()
 
